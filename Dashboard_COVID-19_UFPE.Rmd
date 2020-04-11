@@ -1,0 +1,361 @@
+---
+title: "COVID-19 UFPE / DECART"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    social: [ "twitter", "facebook", "menu"]
+    source_code: embed
+---
+```{r}
+## Comunicação Python  e R
+
+
+```
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(knitr)
+library(DT)
+library(rpivotTable)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(openintro)
+library(highcharter)
+library(ggvis)
+library(maps) #mapas simples, eixos, escala, cidades 
+library(mapdata) #base de dados WorldHires e rios
+library(rworldmap) #outra base de dados de mapas do mundo
+library(maptools) #Ler ESRI shapefiles 
+library(mapproj) #Projeções e grids
+library(ggmap) #Gmaps, OSM + mapas baseados em ggplot2
+library(rgdal)
+```
+
+
+```{r}
+data <- read.csv("covid19-PE_09_04_2020.csv")
+data<-data.frame(data)
+```
+
+```{r}
+mycolors <- c("red", "#FFC125", "darkgreen", "darkorange")
+```
+
+Dados Interativos 
+=====================================
+
+CASOS DE COVID-19 EM PERNAMBUCO
+-------------------------------------
+
+### CASOS DE COVID-19 EM PERNAMBUCO
+
+```{r}
+valueBox(paste("PERNAMBUCO"),
+         color = "warning")
+```
+
+### Casos em Pernambuco
+
+```{r}
+valueBox(sum(data$confirmed),
+         icon = "fa-user")
+```
+
+### **Casos Confirmados no Estado de Pernambuco**
+
+```{r}
+###### Soma os Casos ####
+
+soma<-sum(data$confirmed)
+
+gauge(round(sum(data$confirmed),
+            digits =10),
+            min = 0,
+            max = 100000,
+            gaugeSectors(success = c(0, 1000),
+                         warning = c(1000, 100000),
+                         danger = c(100000, 1000000),
+                         colors = c("green", "yellow", "red")))
+
+```
+
+### RECIFE
+
+```{r}
+valueBox(sum(data$city == "Recife"),
+         icon = 'fa-building')
+```
+
+### Olinda
+
+```{r}
+valueBox(sum(data$city == "Olinda"),
+         icon = 'fa-building')
+```
+
+### Jaboatão dos Guararapes
+
+```{r}
+valueBox(sum(data$city == "JaboatÃ£o dos Guararapes"),
+         icon = 'fa-building')
+```
+
+### Paulista
+
+```{r}
+valueBox(sum(data$city == "Paulista"),
+         icon = 'fa-building')
+```
+
+Número de Casos
+-------------------------------
+
+### Número de Casos
+
+```{r}
+p1 <- data %>%
+         group_by(city) %>%
+         summarise(count = n()) %>%
+         plot_ly(x = ~city,
+                 y = ~count,
+                 color = "blue",
+                 type = 'bar') %>%
+layout(xaxis = list(title = "Municipios"),
+yaxis = list(title = 'Número de Casos'))
+p1
+```
+
+### Principais Cidades
+
+```{r}
+p2 <- data %>%
+         group_by(city) %>%
+         summarise(count = n()) %>%
+         filter(count>50) %>%
+         plot_ly(labels = ~city,
+                 values = ~count,
+                 marker = list(colors = mycolors)) %>%
+         add_pie(hole = 0.2) %>%
+         layout(xaxis = list(zeroline = F,
+                             showline = F,
+                             showticklabels = F,
+                             showgrid = F),
+                yaxis = list(zeroline = F,
+                             showline = F,
+                             showticklabels=F,
+                             showgrid=F))
+p2
+```
+
+### Data Vs Casos confirmados
+
+```{r}
+p3 <- plot_ly(data,
+              x = ~date,
+              y = ~confirmed,
+              text = paste("data:", data$date,
+                           "Confirmado:",
+                           data$confirmed),
+              type = "bar") %>%
+         layout(xaxis = list(title="data"),
+                yaxis = list(title = "casos confirmados"))
+p3
+```
+
+Scatter Plot de Casos confirmados Vs Mortes
+------------------------------------
+### Scatter Plot de Casos confirmados Vs Mortes
+
+```{r}
+## Eliminar as Linhas conm NA's######
+data<-na.omit(data)
+
+p4 <- plot_ly(data, x=~confirmed) %>%
+         add_markers(y = ~deaths,
+                     text = ~paste("confirmed: ", confirmed),
+                     showlegend = F) %>%
+         add_lines(y = ~fitted(loess(confirmed ~ deaths)),
+                   name = "Loess Smoother",
+                   color = I("#FFC125"),
+                   showlegend = T,
+                   line = list(width=5)) %>%
+         layout(xaxis = list(title = "casos confirmados"),
+                yaxis = list(title = "mortes"))
+p4
+```
+
+### Box Plot das Cidades
+
+```{r}
+data %>%
+         group_by(city) %>%
+         ggvis(~city, ~deaths, fill = ~city) %>%
+         layer_boxplots()
+```
+
+Mapa
+========================================
+
+### Map
+```#{python}
+import pandas as pd
+teste=pd.read_csv("covid19-PE_09_04_2020.csv")
+#library(reticulate)
+#os <- import("os")
+#os$listdir(".")
+#library(reticulate)
+#("pandas")
+
+import folium as fl
+#from folium import plugins
+#from branca.colormap import linear
+
+#colormap = linear.YlOrRd_09.scale(0, 400)
+
+#colormap = cm.LinearColormap(
+ #   ['blue', 'yellow', 'red'],
+ #   vmin=0, vmax=500
+#)
+
+#colormap
+```
+
+```{r}
+cidades <- c("Belo Horizonte MG","Contagem MG", "Juiz de Fora MG",
+             "Uberlandia MG", "Montes Claros MG", "Uberaba MG",
+             "Varginha MG", "Governador Valadares MG", "Salto da Divisa MG",
+             "Para de Minas MG", "Bom Despacho MG", "Manhuacu MG",
+             "Rio Casca MG", "Tres Coracoes MG", "Tres Pontas MG",
+             "Sao Sebastiao do Paraiso MG", "Iturama MG", "Joaima MG",
+             "Vicosa MG", "Montalvania MG", "Frutal MG", "Ipatinga MG",
+             "Aimores MG", "Muriae MG", "Januaria MG")
+DF <- data.frame(cidade=cidades, lat=NA, lon=NA)
+require(RgoogleMaps)
+## Loading required package: RgoogleMaps
+getGeoCode("Recife, Pernambuco, Brazil")
+
+```
+
+#```{r}
+# Para várias cidades:
+DF <- with(DF,data.frame(cidade=cidade, t(sapply(DF$cidade, getGeoCode))))
+knitr::kable(DF, format="markdown", digits=4)
+
+```
+
+
+
+
+# Outra Forma seria 
+```{r}
+## Loading required package: plyr
+library(plyr)
+x<-ldply(DF$cidade, function(x) getGeoCode(x))
+knitr::kable(
+  data.frame(cidade=cidades,x),
+  format="markdown",
+  digits=4)
+```
+
+# Podemos agora criar um mapa utilizando as coordenadas recém descobertas. Para desenhar o mapa, usaremos neste exemplo as bibliotecas ggplot2 e ggmap. A primeira coisa a fazer é recuperar o mapa utilizando e depois plotar o que nos interessa. No nosso caso, os municípios e depois plotar os pontos em cima do mesmo
+
+
+```{r}
+require(ggplot2)
+## Loading required package: ggplot2
+require(ggmap)
+## Loading required package: ggmap
+box <- make_bbox(lon, lat, data = DF)
+map <-
+  ggmap(
+    get_map(location = box, maptype="toner", source="stamen")
+    ) +
+  geom_point(data=DF, x=DF$lon, y=DF$lat, color="red")
+map
+```
+
+
+```{r}
+library(leaflet)
+
+m <- leaflet()
+m <- addTiles(m)
+m <- addMarkers(m, lng=174.768, lat=-36.852, popup="The birthplace of R")
+m
+```
+
+
+Tabela de Dados
+========================================
+
+```{r}
+datatable(data,
+          caption = "Failure Data",
+          rownames = T,
+          filter = "top",
+          options = list(pageLength = 25))
+```
+
+Tabela Dinâmica
+=========================================
+
+```{r}
+rpivotTable(data,
+            aggregatorName = "Count",
+            cols= "city",
+            rows = "date",
+            rendererName = "Heatmap")
+```
+
+Resumo {data-orientation=columns} 
+===========================================
+
+Column 
+-----------------------------------
+
+### Max Failure Month
+
+```{r}
+valueBox(max(data$confirmed),
+         icon = "fa-user" )
+```
+
+### Cidades
+```{r}
+valueBox(round(mean(data$city),
+               digits = 2),
+         icon = "fa-area-chart")
+```
+
+### Cidades
+
+```{r}
+valueBox(round(mean(data$deaths), digits = 2),
+         icon = "fa-area-chart")
+```
+
+Resumo
+---------------------------
+
+Resultados
+
+* Número de casos confirmados`r length(data$confirmed)` 
+
+* Número médio de casos confirmados `r mean(data$confirmed)`.
+
+* Número médio de casos de mortes `r mean(data$deaths)`.
+
+This report was generated on `r format(Sys.Date(), format = "%B %d, %Y")`.
+
+Sobre o Relatório
+========================================
+
+Criado por:  Departamento de Engenharia Cartógrafica
+
+
+
+
+
+
